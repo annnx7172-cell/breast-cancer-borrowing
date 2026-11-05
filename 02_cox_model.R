@@ -54,3 +54,89 @@ exp(cbind(HR = coef(cox3), confint(cox3)))
 
 # Check the assumption again
 cox.zph(cox3)
+
+# Keep women whose 5-year outcome is known:
+#   had an event within 5 years, OR were followed for more than 5 years
+df5 <- subset(df, (status == 1 & rfs_years <= 5) | rfs_years > 5)
+
+# Outcome: 1 = recurrence/death within 5 years, 0 = no
+df5$recur5 <- ifelse(df5$status == 1 & df5$rfs_years <= 5, 1, 0)
+table(df5$recur5)
+
+# Logistic regression
+logit <- glm(recur5 ~ treatment + age + menopause + size + grade +
+               nodes + pgr100 + er100, data = df5, family = binomial)
+
+# Odds ratios with 95% CI
+exp(cbind(OR = coef(logit), confint(logit)))
+
+# Multicollinearity check
+library(car)
+vif(logit)
+
+
+# ---- Subgroup 1: menopause ----
+# Treatment HR in pre-menopausal women only
+cox_pre <- coxph(Surv(rfs_years, status) ~ treatment,
+                 data = subset(df, menopause == "Pre-menopausal"))
+exp(cbind(HR = coef(cox_pre), confint(cox_pre)))
+
+# Treatment HR in post-menopausal women only
+cox_post <- coxph(Surv(rfs_years, status) ~ treatment,
+                  data = subset(df, menopause == "Post-menopausal"))
+exp(cbind(HR = coef(cox_post), confint(cox_post)))
+
+# Interaction test: does the treatment effect differ by menopause?
+cox_int1 <- coxph(Surv(rfs_years, status) ~ treatment * menopause, data = df)
+summary(cox_int1)
+
+# ---- Subgroup 2: lymph nodes ----
+# Make two groups: 1-3 nodes vs 4 or more
+df$nodes_grp <- ifelse(df$nodes <= 3, "1-3 nodes", "4+ nodes")
+
+cox_low <- coxph(Surv(rfs_years, status) ~ treatment,
+                 data = subset(df, nodes_grp == "1-3 nodes"))
+exp(cbind(HR = coef(cox_low), confint(cox_low)))
+
+cox_high <- coxph(Surv(rfs_years, status) ~ treatment,
+                  data = subset(df, nodes_grp == "4+ nodes"))
+exp(cbind(HR = coef(cox_high), confint(cox_high)))
+
+# Interaction test: does the treatment effect differ by nodes?
+cox_int2 <- coxph(Surv(rfs_years, status) ~ treatment * nodes_grp, data = df)
+summary(cox_int2)
+
+
+# Small helper: pulls the treatment HR and 95% CI out of a model
+get_hr <- function(model) {
+  exp(c(coef(model)[1], confint(model)[1, ]))
+}
+
+# Collect all results into one table
+forest <- rbind(
+  get_hr(cox1),      # all patients
+  get_hr(cox_pre),   # pre-menopausal
+  get_hr(cox_post),  # post-menopausal
+  get_hr(cox_low),   # 1-3 nodes
+  get_hr(cox_high)   # 4+ nodes
+)
+forest <- as.data.frame(forest)
+names(forest) <- c("hr", "lower", "upper")
+forest$group <- c("All patients", "Pre-menopausal", "Post-menopausal",
+                  "1-3 nodes", "4+ nodes")
+
+# Keep the groups in this order from top to bottom
+forest$group <- factor(forest$group, levels = rev(forest$group))
+forest
+
+# Draw the forest plot
+ggplot(forest, aes(x = hr, y = group)) +
+  geom_point(size = 3) +                                    # the HR
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.2) +  # the 95% CI
+  geom_vline(xintercept = 1, linetype = "dashed") +         # line of no effect
+  scale_x_log10() +                                         # ratio scale
+  labs(x = "Hazard ratio (hormone therapy vs none, 95% CI)", y = NULL,
+       title = "Effect of hormone therapy across subgroups") +
+  theme_minimal()
+
+ggsave("output/forest_plot.png", width = 8, height = 5)
