@@ -1,0 +1,17 @@
+"setting","hist","method","median_HR","claim_benefit","claim_harm"
+"benefit","conflicting","full",1.43,0,1
+"benefit","conflicting","half",1.28,0,0.64
+"benefit","conflicting","none",0.66,0.73,0
+"benefit","conflicting","ttp",0.66,0.73,0
+"benefit","exchangeable","full",0.68,0.955,0
+"benefit","exchangeable","half",0.68,0.96,0
+"benefit","exchangeable","none",0.66,0.73,0
+"benefit","exchangeable","ttp",0.68,0.925,0
+"null","conflicting","full",1.91,0,1
+"null","conflicting","half",1.75,0,0.985
+"null","conflicting","none",0.98,0.025,0.025
+"null","conflicting","ttp",0.98,0.025,0.025
+"null","exchangeable","full",1,0.015,0.045
+"null","exchangeable","half",0.99,0.02,0.035
+"null","exchangeable","none",0.98,0.025,0.025
+"null","exchangeable","ttp",1,0.015,0.045
